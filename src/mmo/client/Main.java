@@ -7,6 +7,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.DefaultHttpContent;
@@ -28,7 +29,8 @@ import java.util.concurrent.TimeUnit;
 public class Main {
 
 	public static void main(String[] args) {
-		new Bootstrap().group(new NioEventLoopGroup())
+		new Bootstrap()
+				.group(new NioEventLoopGroup())
 				.channel(NioSocketChannel.class)
 				.handler(new ChannelInitializer<NioSocketChannel>() {
 
@@ -103,7 +105,8 @@ public class Main {
 								});
 
 					}
-				}).connect("localhost", 8080);
+				}).option(ChannelOption.TCP_NODELAY, true)
+				.connect("localhost", 8080);
 	}
 
 }
