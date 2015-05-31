@@ -12,7 +12,7 @@ public class Main {
         connection.addMessageListener(new MessageListener() {
             @Override
             public void messageReceived(Message message) {
-                System.out.println("message");
+                System.out.println("message: " + message);
             }
         });
 

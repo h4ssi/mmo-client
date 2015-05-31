@@ -1,5 +1,10 @@
 package mmo.client.connection;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -14,6 +19,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.util.CharsetUtil;
 import mmo.client.message.Message;
 
 import java.util.Map;
@@ -25,9 +31,30 @@ public class ServerConnection {
     private final Map<MessageListener, Boolean> listeners = new
             ConcurrentHashMap<>();
 
+    private final ObjectWriter messageWriter;
+    private final ObjectReader messageReader;
+
+    private boolean firstMessageDiscarded = false;
+
     public ServerConnection(String host, int port) {
         this.host = host;
         this.port = port;
+
+        ObjectMapper mapper = new ObjectMapper().setDefaultTyping(
+                new ObjectMapper.DefaultTypeResolverBuilder(
+                        ObjectMapper.DefaultTyping
+                                .OBJECT_AND_NON_CONCRETE)
+                        .init(
+                                JsonTypeInfo.Id.MINIMAL_CLASS,
+                                null)
+                        .inclusion(JsonTypeInfo.As.PROPERTY)
+                        .typeProperty("type")
+        )
+                .enable(SerializationFeature.INDENT_OUTPUT)
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+
+        messageWriter = mapper.writerFor(Message.class);
+        messageReader = mapper.reader(Message.class);
     }
 
     public void open() {
@@ -88,9 +115,22 @@ public class ServerConnection {
             if (msg instanceof LastHttpContent) {
                 ctx.close();
             } else if (msg instanceof HttpContent) {
+                if (!firstMessageDiscarded) {
+                    firstMessageDiscarded = true;
+                    return;
+                }
+
                 HttpContent c = (HttpContent) msg;
 
-                messageReceived(null); // TODO decode message
+                String json = c.content().toString(CharsetUtil.UTF_8);
+
+                Message m;
+                try {
+                    m = messageReader.readValue(json);
+                } catch (IllegalArgumentException e) {
+                    m = null;
+                }
+                messageReceived(m);
             }
         }
     }
