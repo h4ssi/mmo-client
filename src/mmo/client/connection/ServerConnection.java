@@ -1,11 +1,13 @@
 package mmo.client.connection;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -14,6 +16,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpContent;
@@ -98,6 +101,18 @@ public class ServerConnection {
 
     public void removeMessageListener(MessageListener listener) {
         listeners.remove(listener);
+    }
+
+    public void sendMessage(Message message) throws JsonProcessingException {
+        notificationChannel.writeAndFlush(
+                new DefaultHttpContent(
+                        Unpooled.wrappedBuffer(
+                                messageWriter.writeValueAsBytes(
+                                        message
+                                )
+                        )
+                )
+        );
     }
 
     public <T> Future<T> getData(final String uri, final Class<T> clazz) {
