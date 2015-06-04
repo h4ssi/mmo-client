@@ -18,6 +18,7 @@ package mmo.client.connection;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -85,7 +86,8 @@ public class ServerConnection {
                         .typeProperty("type")
         )
                 .enable(SerializationFeature.INDENT_OUTPUT)
-                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
         messageWriter = mapper.writerFor(Message.class);
         messageReader = mapper.reader(Message.class);
