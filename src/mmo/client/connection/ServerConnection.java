@@ -57,6 +57,7 @@ import java.util.concurrent.ConcurrentMap;
 public class ServerConnection {
     private final String host;
     private final int port;
+    private final String username;
     private final ConcurrentMap<MessageListener, Boolean> listeners =
             new ConcurrentHashMap<>();
 
@@ -73,8 +74,13 @@ public class ServerConnection {
     private DataHandler dataHandler = new DataHandler();
 
     public ServerConnection(String host, int port) {
+        this(host, port, null);
+    }
+
+    public ServerConnection(String host, int port, String username) {
         this.host = host;
         this.port = port;
+        this.username = username;
 
         mapper = new ObjectMapper().setDefaultTyping(
                 new ObjectMapper.DefaultTypeResolverBuilder(
@@ -188,7 +194,11 @@ public class ServerConnection {
 
             DefaultHttpRequest req = new DefaultHttpRequest(
                     HttpVersion.HTTP_1_1,
-                    HttpMethod.GET, "/game");
+                    HttpMethod.GET,
+                    "/game" +
+                            (username == null
+                                    ? ""
+                                    : "/" + username));
             HttpHeaders.setHeader(req, HttpHeaders.Names.CONTENT_TYPE,
                     "text/plain; charset=utf-8");
             HttpHeaders.setTransferEncodingChunked(req);
