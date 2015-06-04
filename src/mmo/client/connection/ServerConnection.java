@@ -51,14 +51,14 @@ import io.netty.util.concurrent.Promise;
 import mmo.client.message.Message;
 
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class ServerConnection {
     private final String host;
     private final int port;
-    private final Map<MessageListener, Boolean> listeners = new
-            ConcurrentHashMap<>();
+    private final ConcurrentMap<MessageListener, Boolean> listeners =
+            new ConcurrentHashMap<>();
 
     private final ObjectMapper mapper;
     private final ObjectWriter messageWriter;
