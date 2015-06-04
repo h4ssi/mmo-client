@@ -199,25 +199,29 @@ public class ServerConnection {
         public void channelRead(
                 ChannelHandlerContext ctx,
                 Object msg) throws Exception {
-            if (msg instanceof LastHttpContent) {
-                ctx.close();
-            } else if (msg instanceof HttpContent) {
-                if (!firstMessageDiscarded) {
-                    firstMessageDiscarded = true;
-                    return;
+            try {
+                if (msg instanceof LastHttpContent) {
+                    ctx.close();
+                } else if (msg instanceof HttpContent) {
+                    if (!firstMessageDiscarded) {
+                        firstMessageDiscarded = true;
+                        return;
+                    }
+
+                    HttpContent c = (HttpContent) msg;
+
+                    String json = c.content().toString(CharsetUtil.UTF_8);
+
+                    Message m;
+                    try {
+                        m = messageReader.readValue(json);
+                    } catch (IllegalArgumentException e) {
+                        m = null;
+                    }
+                    messageReceived(m);
                 }
-
-                HttpContent c = (HttpContent) msg;
-
-                String json = c.content().toString(CharsetUtil.UTF_8);
-
-                Message m;
-                try {
-                    m = messageReader.readValue(json);
-                } catch (IllegalArgumentException e) {
-                    m = null;
-                }
-                messageReceived(m);
+            } finally {
+                ReferenceCountUtil.release(msg);
             }
         }
     }
