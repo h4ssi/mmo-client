@@ -54,6 +54,19 @@ import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * Client connection to mmo-server.
+ *
+ * Allows for sending and receiving messages, as well as querying data endpoints
+ * directly.
+ *
+ * This class operates asynchronously. Keep this in mind when integrating
+ * this code into yours. Use suitable synchronisation mechanisms (like e.g.
+ * javax.swing.SwingUtilities#invokeLater when interfacing with the swing/awt
+ * event loop)
+ *
+ * You need to open the connection by explicitly calling #open()
+ */
 public class ServerConnection {
     private final String host;
     private final int port;
@@ -73,10 +86,25 @@ public class ServerConnection {
     private NioEventLoopGroup notificationGroup = new NioEventLoopGroup(1);
     private DataHandler dataHandler = new DataHandler();
 
+    /**
+     * Connects to mmo server with hostname and port information and login
+     * anonymously.
+     *
+     * @param host hostname or ip of server
+     * @param port port to connect to
+     */
     public ServerConnection(String host, int port) {
         this(host, port, null);
     }
 
+    /**
+     * Connects to mmo server with hostname and port and login with given
+     * username.
+     *
+     * @param host hostname or ip of server
+     * @param port port to connect to
+     * @param username login name
+     */
     public ServerConnection(String host, int port, String username) {
         this.host = host;
         this.port = port;
@@ -101,6 +129,9 @@ public class ServerConnection {
         messageReader = mapper.reader(Message.class);
     }
 
+    /**
+     * Opens connection to server. This method must be called explicitly.
+     */
     public void open() {
         new Bootstrap()
                 .group(notificationGroup)
@@ -116,19 +147,42 @@ public class ServerConnection {
                 .connect(this.host, this.port);
     }
 
+    /**
+     * Closes connection to server. Per default connections will stay open
+     * indefinitely. Use this method to close the connection gracefully.
+     */
     public void close() {
         notificationGroup.shutdownGracefully();
         dataGroup.shutdownGracefully();
     }
 
+    /**
+     * Registers a message listener. It will be notified about every message
+     * received. If a message cannot be decoded, it will call the
+     * MessageListener#messageReceived with a <code>Message</code> argument of
+     * <code>null</code>.
+     *
+     * @param listener Listener to register
+     */
     public void addMessageListener(MessageListener listener) {
         listeners.putIfAbsent(listener, Boolean.TRUE);
     }
 
+    /**
+     * Removes a message listener.
+     *
+     * @param listener Listener to remove
+     */
     public void removeMessageListener(MessageListener listener) {
         listeners.remove(listener);
     }
 
+    /**
+     * Sends a <code>Message</code> to the server.
+     *
+     * @param message <code>Message</code> to send.
+     * @throws JsonProcessingException On encoding errors
+     */
     public void sendMessage(Message message) throws JsonProcessingException {
         notificationChannel.writeAndFlush(
                 new DefaultHttpContent(
@@ -141,6 +195,17 @@ public class ServerConnection {
         );
     }
 
+    /**
+     * Queries data from the server. Queries data from the given URI and decodes
+     * it as value of the given class. The result is received asynchronously.
+     * You may register a listener on the returned <code>Future</code> or
+     * block on it to wait for the result to arrive.
+     *
+     * @param uri   URI to query data from
+     * @param clazz Class to decode data to
+     * @param <T>   <code>Class</code> type param
+     * @return      <code>Future</code> of value to be received and decoded
+     */
     public <T> Future<T> getData(final String uri, final Class<T> clazz) {
         final Promise<T> promise = new DefaultPromise<>(dataGroup.next());
         dataGroup.submit(new Runnable() {
