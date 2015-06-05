@@ -17,3 +17,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+## Powered by
+
+* [netty](http://netty.io/) Copyright 2014 The Netty Project
+* [jackson](http://wiki.fasterxml.com/JacksonHome)
