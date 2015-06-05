@@ -16,5 +16,16 @@
 
 package mmo.client.message;
 
+/**
+ * Base type for messages exchanged with mmo server.
+ * Messages will be serialized to and deserialized and from messages
+ * automatically.
+ * <p/>
+ * Getters and setters will be mapped to the corresponding json fields. E.g.
+ * getData/setData will be mapped to json field "data"
+ * <p/>
+ * You may also use Jackson annotations to describe the serialization format
+ * more specifically.
+ */
 public interface Message {
 }
