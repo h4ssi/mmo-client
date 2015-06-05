@@ -236,7 +236,7 @@ public class ServerConnection {
         }
     }
 
-    public static class DataTask<T> {
+    private static class DataTask<T> {
         public String uri;
         public Class<T> clazz;
         public Promise<T> promise;
