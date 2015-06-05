@@ -18,6 +18,15 @@ package mmo.client.connection;
 
 import mmo.client.message.Message;
 
+/**
+ * Listens for incoming messages from mmo server.
+ */
 public interface MessageListener {
+    /**
+     * Callback for received messages. Notice that messages will be received
+     * asynchronously and must be synchronized manually.
+     *
+     * @param message The <code>Message</code> received
+     */
     void messageReceived(Message message);
 }
