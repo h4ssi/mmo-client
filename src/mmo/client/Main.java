@@ -56,10 +56,8 @@ public class Main {
                 .addListener(new FutureListener<ServerInfo>() {
 
                     @Override
-                    public void operationComplete(Future<ServerInfo> future)
-                            throws
-                            Exception {
-                        System.out.println(future.get());
+                    public void operationComplete(Future<ServerInfo> future) {
+                        System.out.println(future.getNow());
                     }
                 });
     }
