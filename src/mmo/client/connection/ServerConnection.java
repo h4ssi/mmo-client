@@ -69,6 +69,12 @@ import java.util.concurrent.ConcurrentMap;
  * You need to open the connection by explicitly calling #open()
  */
 public class ServerConnection {
+    /**
+     * enable this switch to print all received json messages prior to
+     * decoding them
+     */
+    private final boolean DEBUG = false;
+
     private final String host;
     private final int port;
     private final String username;
@@ -289,6 +295,10 @@ public class ServerConnection {
                     HttpContent c = (HttpContent) msg;
 
                     String json = c.content().toString(CharsetUtil.UTF_8);
+
+                    if(DEBUG) {
+                        System.out.println(json);
+                    }
 
                     Message m;
                     try {
