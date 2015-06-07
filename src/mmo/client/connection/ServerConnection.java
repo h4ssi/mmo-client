@@ -31,6 +31,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
@@ -56,15 +57,15 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * Client connection to mmo-server.
- *
+ * <p/>
  * Allows for sending and receiving messages, as well as querying data endpoints
  * directly.
- *
+ * <p/>
  * This class operates asynchronously. Keep this in mind when integrating
  * this code into yours. Use suitable synchronisation mechanisms (like e.g.
  * javax.swing.SwingUtilities#invokeLater when interfacing with the swing/awt
  * event loop)
- *
+ * <p/>
  * You need to open the connection by explicitly calling #open()
  */
 public class ServerConnection {
@@ -101,8 +102,8 @@ public class ServerConnection {
      * Connects to mmo server with hostname and port and login with given
      * username.
      *
-     * @param host hostname or ip of server
-     * @param port port to connect to
+     * @param host     hostname or ip of server
+     * @param port     port to connect to
      * @param username login name
      */
     public ServerConnection(String host, int port, String username) {
@@ -137,6 +138,8 @@ public class ServerConnection {
                 .group(notificationGroup)
                 .channel(NioSocketChannel.class)
                 .handler(new NotificationInitializer())
+                .option(ChannelOption.RCVBUF_ALLOCATOR,
+                        new FixedRecvByteBufAllocator(16384))
                 .option(ChannelOption.TCP_NODELAY, true)
                 .connect(this.host, this.port);
         new Bootstrap()
@@ -204,7 +207,7 @@ public class ServerConnection {
      * @param uri   URI to query data from
      * @param clazz Class to decode data to
      * @param <T>   <code>Class</code> type param
-     * @return      <code>Future</code> of value to be received and decoded
+     * @return <code>Future</code> of value to be received and decoded
      */
     public <T> Future<T> getData(final String uri, final Class<T> clazz) {
         final Promise<T> promise = new DefaultPromise<>(dataGroup.next());
