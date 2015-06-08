@@ -51,6 +51,8 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import mmo.client.message.Message;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -259,6 +261,14 @@ public class ServerConnection {
         }
     }
 
+    private static String uriEncode(String path) {
+        try {
+            return new URI(null, null, path, null).getRawPath();
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
     private class NotificationHandler extends ChannelInboundHandlerAdapter {
         @Override
         public void channelActive(
@@ -269,10 +279,10 @@ public class ServerConnection {
             DefaultHttpRequest req = new DefaultHttpRequest(
                     HttpVersion.HTTP_1_1,
                     HttpMethod.GET,
-                    "/game" +
+                    uriEncode("/game" +
                             (username == null
                                     ? ""
-                                    : "/" + username));
+                                    : "/" + username)));
             HttpHeaders.setHeader(req, HttpHeaders.Names.CONTENT_TYPE,
                     "text/plain; charset=utf-8");
             HttpHeaders.setTransferEncodingChunked(req);
@@ -296,7 +306,7 @@ public class ServerConnection {
 
                     String json = c.content().toString(CharsetUtil.UTF_8);
 
-                    if(DEBUG) {
+                    if (DEBUG) {
                         System.out.println(json);
                     }
 
@@ -343,8 +353,10 @@ public class ServerConnection {
             if (!waitingForResponse) {
                 waitingForResponse = true;
 
-                HttpRequest req = new DefaultFullHttpRequest(HttpVersion
-                        .HTTP_1_1, HttpMethod.GET, queue.getFirst().uri);
+                HttpRequest req = new DefaultFullHttpRequest(
+                        HttpVersion.HTTP_1_1,
+                        HttpMethod.GET,
+                        uriEncode(queue.getFirst().uri));
 
                 dataChannel.writeAndFlush(req);
             }
