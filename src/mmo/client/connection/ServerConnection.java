@@ -154,6 +154,8 @@ public class ServerConnection {
                 .group(dataGroup)
                 .channel(NioSocketChannel.class)
                 .handler(new DataInitializer())
+                .option(ChannelOption.RCVBUF_ALLOCATOR,
+                        new FixedRecvByteBufAllocator(16384))
                 .option(ChannelOption.TCP_NODELAY, true)
                 .connect(this.host, this.port);
     }
