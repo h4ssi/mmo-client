@@ -32,18 +32,21 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.FixedRecvByteBufAllocator;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.MessageToMessageCodec;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.DefaultHttpContent;
-import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpClientCodec;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketClientProtocolHandler;
+import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.DefaultPromise;
@@ -54,6 +57,7 @@ import mmo.client.message.Message;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -90,7 +94,6 @@ public class ServerConnection {
     private Channel notificationChannel;
     private Channel dataChannel;
 
-    private boolean firstMessageDiscarded = false;
     private NioEventLoopGroup dataGroup = new NioEventLoopGroup(1);
     private NioEventLoopGroup notificationGroup = new NioEventLoopGroup(1);
     private DataHandler dataHandler = new DataHandler();
@@ -197,15 +200,7 @@ public class ServerConnection {
      * @throws JsonProcessingException On encoding errors
      */
     public void sendMessage(Message message) throws JsonProcessingException {
-        notificationChannel.writeAndFlush(
-                new DefaultHttpContent(
-                        Unpooled.wrappedBuffer(
-                                messageWriter.writeValueAsBytes(
-                                        message
-                                )
-                        )
-                )
-        );
+        notificationChannel.writeAndFlush(message);
     }
 
     /**
@@ -242,11 +237,16 @@ public class ServerConnection {
         @Override
         protected void initChannel(final NioSocketChannel ch)
                 throws Exception {
-            notificationChannel = ch;
-            ch.pipeline()
-                    .addLast(new HttpClientCodec())
-                    .addLast(new NotificationHandler());
+            URI uri = new URI("ws", null, host, port, "/game/" + (username == null ? "" : uriEncode(username)), null, null);
+            System.out.println(uri);
 
+            notificationChannel = ch;
+            ch.pipeline().addLast(
+                    new HttpClientCodec(),
+                    new HttpObjectAggregator(65536),
+                    new WebSocketClientProtocolHandler(uri, WebSocketVersion.V13, null, false, new DefaultHttpHeaders(), 65536, true),
+                    new MessageCodec(),
+                    new NotificationHandler());
         }
     }
 
@@ -271,58 +271,39 @@ public class ServerConnection {
         }
     }
 
-    private class NotificationHandler extends ChannelInboundHandlerAdapter {
+    private class MessageCodec extends MessageToMessageCodec<TextWebSocketFrame, Message> {
         @Override
-        public void channelActive(
-                final ChannelHandlerContext ctx)
-                throws Exception {
-            super.channelActive(ctx);
-
-            DefaultHttpRequest req = new DefaultHttpRequest(
-                    HttpVersion.HTTP_1_1,
-                    HttpMethod.GET,
-                    uriEncode("/game" +
-                            (username == null
-                                    ? ""
-                                    : "/" + username)));
-            HttpHeaders.setHeader(req, HttpHeaders.Names.CONTENT_TYPE,
-                    "text/plain; charset=utf-8");
-            HttpHeaders.setTransferEncodingChunked(req);
-            ctx.writeAndFlush(req);
+        protected void encode(ChannelHandlerContext ctx, Message msg, List<Object> out) throws Exception {
+            out.add(new TextWebSocketFrame(Unpooled.wrappedBuffer(messageWriter.writeValueAsBytes(msg))));
         }
 
         @Override
-        public void channelRead(
-                ChannelHandlerContext ctx,
-                Object msg) throws Exception {
-            try {
-                if (msg instanceof LastHttpContent) {
-                    ctx.close();
-                } else if (msg instanceof HttpContent) {
-                    if (!firstMessageDiscarded) {
-                        firstMessageDiscarded = true;
-                        return;
-                    }
+        protected void decode(ChannelHandlerContext ctx, TextWebSocketFrame msg, List<Object> out) throws Exception {
+            String json = msg.text();
 
-                    HttpContent c = (HttpContent) msg;
-
-                    String json = c.content().toString(CharsetUtil.UTF_8);
-
-                    if (DEBUG) {
-                        System.out.println(json);
-                    }
-
-                    Message m;
-                    try {
-                        m = messageReader.readValue(json);
-                    } catch (IllegalArgumentException e) {
-                        m = null;
-                    }
-                    messageReceived(m);
-                }
-            } finally {
-                ReferenceCountUtil.release(msg);
+            if (DEBUG) {
+                System.out.println(json);
             }
+
+            try {
+                out.add(messageReader.readValue(json));
+            } catch (IllegalArgumentException e) {
+                // TODO just warn if decoded type is not implement yet
+                ctx.fireExceptionCaught(e);
+            }
+        }
+    }
+
+    private class NotificationHandler extends SimpleChannelInboundHandler<Message> {
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, Message msg) throws Exception {
+            messageReceived(msg);
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+            cause.printStackTrace();
+            super.exceptionCaught(ctx, cause);
         }
     }
 
